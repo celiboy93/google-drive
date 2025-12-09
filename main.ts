@@ -3,12 +3,17 @@ import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 serve(async (req) => {
   const url = new URL(req.url);
 
-  // URL ခွဲထုတ်ခြင်း (Example: /FILE_ID/my_movie.mp4)
+  // URL ခွဲထုတ်ခြင်း (Example: /my_movie.mp4/FILE_ID)
+  // ရှေ့မှာ နာမည်ထားတာ ပိုကောင်းပါတယ်
   const pathParts = url.pathname.split("/");
-  const fileId = pathParts[1];
+  
+  // pathParts[1] = FILE_NAME (my_movie.mp4)
+  // pathParts[2] = FILE_ID (1xEvd...)
+  let fileName = pathParts[1];
+  const fileId = pathParts[2];
 
-  if (!fileId || fileId === "favicon.ico") {
-    return new Response("Usage: https://your-app.deno.dev/FILE_ID/name.mp4", {
+  if (!fileId) {
+    return new Response("Usage: https://your-app.deno.dev/YOUR_NAME.mp4/YOUR_FILE_ID", {
       headers: { "content-type": "text/plain" }
     });
   }
@@ -18,10 +23,19 @@ serve(async (req) => {
     return new Response("Server Error: API Key missing.", { status: 500 });
   }
 
-  // Google Drive API Link
-  const targetUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&key=${apiKey}`;
+  // Google Drive Link
+  let targetUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&key=${apiKey}`;
 
-  // ရိုးရိုးရှင်းရှင်း Redirect (302)
-  // Android က Google Drive ထဲက နာမည်ကိုပဲ အတည်ယူပါလိမ့်မယ်
-  return Response.redirect(targetUrl, 302);
+  // 🔥 Last Trick: Link နောက်ဆုံးမှာ #.mp4 ထည့်ခြင်း 🔥
+  // ဒါက Google ကို မထိခိုက်စေဘဲ Android ကို လှည့်စားတာပါ
+  targetUrl = targetUrl + `#.mp4`;
+
+  return new Response(null, {
+    status: 302,
+    headers: {
+      "Location": targetUrl,
+      // Header မှာလည်း နာမည်ထပ်ထည့်ပေးမယ် (၂ ထပ်ကွမ်းပေါ့)
+      "Content-Disposition": `attachment; filename="${decodeURIComponent(fileName)}"`
+    }
+  });
 });
